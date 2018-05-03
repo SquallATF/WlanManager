@@ -1,18 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace WlanManager
 {
     public partial class MainForm : Form
     {
+        // ReSharper disable ArrangeTypeMemberModifiers
+        // ReSharper disable UnusedMember.Local
+        // ReSharper disable InconsistentNaming
         const int WM_DEVICECHANGE = 0x0219;
         const int DBT_CONFIGCHANGECANCELED = 0x0019;
         const int DBT_CONFIGCHANGED = 0x0018;
@@ -31,40 +27,65 @@ namespace WlanManager
         const uint DEVICE_NOTIFY_SERVICE_HANDLE = 0x00000001;
         const uint DEVICE_NOTIFY_ALL_INTERFACE_CLASSES = 0x00000004;
         static readonly Guid GUID_DEVINTERFACE_USB_DEVICE = new Guid("{a5dcbf10-6530-11d2-901f-00c04fb951ed}");
+        // ReSharper restore InconsistentNaming
+        // ReSharper restore UnusedMember.Local
+        // ReSharper restore ArrangeTypeMemberModifiers
 
-        WlanHostedNetworkManager wlanHostedNetworkManager = new WlanHostedNetworkManager();
-        IntPtr hDevNotify = IntPtr.Zero;
+        private readonly WlanHostedNetworkManager _wlanHostedNetworkManager = new WlanHostedNetworkManager();
+        private IntPtr _hDevNotify = IntPtr.Zero;
 
         public MainForm()
         {
             InitializeComponent();
+            _wlanHostedNetworkManager.EnableStateChanged += _wlanHostedNetworkManager_EnableStateChanged;
+            _wlanHostedNetworkManager.StartStateChanged += _wlanHostedNetworkManager_StartStateChanged;
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void _wlanHostedNetworkManager_EnableStateChanged(object sender, EventArgs e)
         {
-            if (wlanHostedNetworkManager.Start())
+            if (InvokeRequired)
             {
-                button3.Enabled = false;
+                Invoke(new Action(LoadInfo));
+            }
+            else
+            {
                 LoadInfo();
             }
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void _wlanHostedNetworkManager_StartStateChanged(object sender, EventArgs e)
         {
-            if (wlanHostedNetworkManager.Stop())
+            if (InvokeRequired)
+            {
+                Invoke(new Action(LoadInfo));
+            }
+            else
             {
                 LoadInfo();
-                button3.Enabled = true;
+            }
+        }
+
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            button1.Enabled = false;
+            if (!await _wlanHostedNetworkManager.Start())
+            {
+                button1.Enabled = true;
+            }
+        }
+
+        private async void button2_Click(object sender, EventArgs e)
+        {
+            button2.Enabled = false;
+            if (!await _wlanHostedNetworkManager.Stop())
+            {
+                button2.Enabled = true;
             }
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
             LoadInfo();
-            if (wlanHostedNetworkManager.IsStarted)
-            {
-                button3.Enabled = false;
-            }
             try
             {
                 var dbh = new NativeMethods.DEV_BROADCAST_DEVICEINTERFACE();
@@ -73,8 +94,8 @@ namespace WlanManager
                 dbh.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
                 IntPtr pFilter = Marshal.AllocHGlobal(Marshal.SizeOf(dbh));
                 Marshal.StructureToPtr(dbh, pFilter, false);
-                hDevNotify = NativeMethods.RegisterDeviceNotification(Handle, pFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
-                if (hDevNotify == IntPtr.Zero)
+                _hDevNotify = NativeMethods.RegisterDeviceNotification(Handle, pFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
+                if (_hDevNotify == IntPtr.Zero)
                 {
                     System.Diagnostics.Debug.WriteLine("false");
                 }
@@ -88,17 +109,35 @@ namespace WlanManager
 
         private void LoadInfo()
         {
-            modeLabel.Text = wlanHostedNetworkManager.IsEnabled ? "已启用" : "已禁用";
-            stateGroupBox.Enabled = wlanHostedNetworkManager.IsEnabled;
-            ssidLabel.Text = wlanHostedNetworkManager.SSID;
-            maxLabel.Text = wlanHostedNetworkManager.MaxNumberOfPeers.ToString();
-            authLabel.Text = wlanHostedNetworkManager.Authentication;
-            encLabel.Text = wlanHostedNetworkManager.Encryption;
-            if (wlanHostedNetworkManager.IsEnabled)
+            modeLabel.Text = _wlanHostedNetworkManager.IsEnabled ? "已启用" : "已禁用";
+            stateGroupBox.Enabled = _wlanHostedNetworkManager.IsEnabled;
+            ssidLabel.Text = _wlanHostedNetworkManager.SSID;
+            maxLabel.Text = _wlanHostedNetworkManager.MaxNumberOfPeers.ToString();
+            authLabel.Text = _wlanHostedNetworkManager.Authentication;
+            encLabel.Text = _wlanHostedNetworkManager.Encryption;
+            if (_wlanHostedNetworkManager.IsEnabled)
             {
-                statusLabel.Text = wlanHostedNetworkManager.IsStarted ? "已启动" : "已停止";
-                bssidLabel.Text = wlanHostedNetworkManager.BSSID;
-                chLabel.Text = wlanHostedNetworkManager.ChannelFrequency.ToString();
+                statusLabel.Text = _wlanHostedNetworkManager.IsStarted ? "已启动" : "已停止";
+                bssidLabel.Text = _wlanHostedNetworkManager.BSSID;
+                chLabel.Text = _wlanHostedNetworkManager.ChannelFrequency.ToString();
+                if (_wlanHostedNetworkManager.IsStarted)
+                {
+                    button1.Enabled = false;
+                    button2.Enabled = true;
+                    button3.Enabled = false;
+                }
+                else
+                {
+                    button1.Enabled = true;
+                    button2.Enabled = false;
+                    button3.Enabled = true;
+                }
+            }
+            else
+            {
+                button1.Enabled = false;
+                button2.Enabled = false;
+                button3.Enabled = true;
             }
         }
 
@@ -111,7 +150,7 @@ namespace WlanManager
                 {
                     case DBT_DEVICEARRIVAL:
                         System.Diagnostics.Debug.WriteLine("DBT_DEVICEARRIVAL");
-                        wlanHostedNetworkManager.Refresh();
+                        _wlanHostedNetworkManager.Refresh();
                         LoadInfo();
                         try
                         {
@@ -120,7 +159,7 @@ namespace WlanManager
                             if (hdr.dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
                             {
                                 var hdr1 = (NativeMethods.DEV_BROADCAST_DEVICEINTERFACE)Marshal.PtrToStructure(m.LParam, typeof(NativeMethods.DEV_BROADCAST_DEVICEINTERFACE));
-                                System.Diagnostics.Debug.WriteLine((string)hdr1.dbcc_name);
+                                System.Diagnostics.Debug.WriteLine(hdr1.dbcc_name);
                             }
                         }
                         catch (Exception ex)
@@ -130,7 +169,7 @@ namespace WlanManager
                         break;
                     case DBT_DEVICEREMOVECOMPLETE:
                         System.Diagnostics.Debug.WriteLine("DBT_DEVICEREMOVECOMPLETE");
-                        wlanHostedNetworkManager.Refresh();
+                        _wlanHostedNetworkManager.Refresh();
                         LoadInfo();
                         break;
                 }
@@ -141,15 +180,15 @@ namespace WlanManager
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (hDevNotify != IntPtr.Zero)
+            if (_hDevNotify != IntPtr.Zero)
             {
-                NativeMethods.UnregisterDeviceNotification(hDevNotify);
+                NativeMethods.UnregisterDeviceNotification(_hDevNotify);
             }
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
-            ConfigForm configForm = new ConfigForm(wlanHostedNetworkManager);
+            ConfigForm configForm = new ConfigForm(_wlanHostedNetworkManager);
             if (configForm.ShowDialog() == DialogResult.OK)
             {
                 LoadInfo();

@@ -11,13 +11,26 @@ namespace WlanManager
         static readonly int WLAN_PROFILE_INFO_SIZE = Marshal.SizeOf(typeof(WLAN_PROFILE_INFO));
         static readonly int WLAN_HOSTED_NETWORK_PEER_STATE_SIZE = Marshal.SizeOf(typeof(WLAN_HOSTED_NETWORK_PEER_STATE));
 
-        public const uint WLAN_PROFILE_GROUP_POLICY                  = 0x00000001;
-        public const uint WLAN_PROFILE_USER                          = 0x00000002;
-        public const uint WLAN_PROFILE_GET_PLAINTEXT_KEY		     = 0x00000004;
+        public const uint WLAN_API_VERSION_1_0 = 0x00000001;
+        public const uint WLAN_API_VERSION_2_0 = 0x00000002;
+
+        public const uint WLAN_PROFILE_GROUP_POLICY = 0x00000001;
+        public const uint WLAN_PROFILE_USER = 0x00000002;
+        public const uint WLAN_PROFILE_GET_PLAINTEXT_KEY = 0x00000004;
 
         public const uint ERROR_SUCCESS = 0;
         public const uint ERROR_BAD_CONFIGURATION = 1610;
         public const uint ERROR_SERVICE_NOT_ACTIVE = 1062;
+
+
+        public const uint WLAN_NOTIFICATION_SOURCE_NONE = 0;
+        public const uint WLAN_NOTIFICATION_SOURCE_ONEX = 0x00000004;
+        public const uint WLAN_NOTIFICATION_SOURCE_ACM = 0x00000008;
+        public const uint WLAN_NOTIFICATION_SOURCE_MSM = 0x00000010;
+        public const uint WLAN_NOTIFICATION_SOURCE_SECURITY = 0x00000020;
+        public const uint WLAN_NOTIFICATION_SOURCE_IHV = 0x00000040;
+        public const uint WLAN_NOTIFICATION_SOURCE_HNWK = 0x00000080;
+        public const uint WLAN_NOTIFICATION_SOURCE_ALL = 0x0000FFFF;
 
         [StructLayout(LayoutKind.Sequential)]
         public struct WLAN_INTERFACE_INFO_LIST
@@ -25,7 +38,7 @@ namespace WlanManager
             public uint dwNumberOfItems;
             public uint dwIndex;
             public WLAN_INTERFACE_INFO[] InterfaceInfo;
-            
+
             public WLAN_INTERFACE_INFO_LIST(IntPtr pList)
             {
                 dwNumberOfItems = (uint)Marshal.ReadInt32(pList, 0);
@@ -52,14 +65,14 @@ namespace WlanManager
 
         public enum WLAN_INTERFACE_STATE
         {
-            wlan_interface_state_not_ready              = 0,
-            wlan_interface_state_connected              = 1,
-            wlan_interface_state_ad_hoc_network_formed  = 2,
-            wlan_interface_state_disconnecting          = 3,
-            wlan_interface_state_disconnected           = 4,
-            wlan_interface_state_associating            = 5,
-            wlan_interface_state_discovering            = 6,
-            wlan_interface_state_authenticating         = 7
+            wlan_interface_state_not_ready = 0,
+            wlan_interface_state_connected = 1,
+            wlan_interface_state_ad_hoc_network_formed = 2,
+            wlan_interface_state_disconnecting = 3,
+            wlan_interface_state_disconnected = 4,
+            wlan_interface_state_associating = 5,
+            wlan_interface_state_discovering = 6,
+            wlan_interface_state_authenticating = 7
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -114,7 +127,7 @@ namespace WlanManager
             public uint dwMaxNumberOfPeers;
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Ansi)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         public struct DOT11_SSID
         {
             public uint uSSIDLength;
@@ -127,6 +140,32 @@ namespace WlanManager
         {
             public DOT11_AUTH_ALGORITHM dot11AuthAlgo;
             public DOT11_CIPHER_ALGORITHM dot11CipherAlgo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WLAN_NOTIFICATION_DATA
+        {
+            public uint NotificationSource;
+            public WLAN_HOSTED_NETWORK_NOTIFICATION_CODE NotificationCode;
+            public Guid InterfaceGuid;
+            public uint dwDataSize;
+            public IntPtr pData;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WLAN_HOSTED_NETWORK_STATE_CHANGE
+        {
+            public WLAN_HOSTED_NETWORK_STATE OldState;
+            public WLAN_HOSTED_NETWORK_STATE NewState;
+            public WLAN_HOSTED_NETWORK_REASON StateChangeReason;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WLAN_HOSTED_NETWORK_DATA_PEER_STATE_CHANGE
+        {
+            public WLAN_HOSTED_NETWORK_PEER_STATE OldState;
+            public WLAN_HOSTED_NETWORK_PEER_STATE NewState;
+            public WLAN_HOSTED_NETWORK_REASON StateChangeReason;
         }
 
         public enum DOT11_AUTH_ALGORITHM : uint
@@ -155,6 +194,14 @@ namespace WlanManager
             DOT11_CIPHER_ALGO_IHV_START = 0x80000000,
             DOT11_CIPHER_ALGO_IHV_END = 0xffffffff
         }
+
+        public enum WLAN_HOSTED_NETWORK_NOTIFICATION_CODE : uint
+        {
+            wlan_hosted_network_state_change = 0x00001000,
+            wlan_hosted_network_peer_state_change,
+            wlan_hosted_network_radio_state_change
+        }
+
 
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct WLAN_HOSTED_NETWORK_STATUS
@@ -292,12 +339,12 @@ namespace WlanManager
             [In] uint dwClientVersion,
             IntPtr pReserved,
             [Out] out uint pdwNegotiatedVersion,
-            [Out] out IntPtr phClientHandle);
+            [Out] out WlanHandle phClientHandle);
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanCloseHandle(
             [In] IntPtr hClientHandle,
-            IntPtr pReserved);
+            IntPtr pReserved = default(IntPtr));
 
         //[DllImport("wlanapi.dll")]
         //public static extern uint WlanEnumInterfaces([In] IntPtr hClientHandle, [In] IntPtr pReserved, [Out] out IntPtr ppInterfaceList);
@@ -310,83 +357,95 @@ namespace WlanManager
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkStartUsing(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkStopUsing(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkForceStart(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkForceStop(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkQueryProperty(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [In] WLAN_HOSTED_NETWORK_OPCODE OpCode,
             [Out] out uint pdwDataSize,
             [Out] out IntPtr ppvData,
             [Out] out WLAN_OPCODE_VALUE_TYPE pWlanOpcodeValueType,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkSetProperty(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [In] WLAN_HOSTED_NETWORK_OPCODE OpCode,
             [In] uint dwDataSize,
             [In] IntPtr pvData,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkInitSettings(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkRefreshSecuritySettings(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkQueryStatus(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out] out IntPtr ppWlanHostedNetworkStatus,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkSetSecondaryKey(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [In] uint dwKeyLength,
             [In, MarshalAs(UnmanagedType.LPStr)] string pucKeyData,
             [In, MarshalAs(UnmanagedType.Bool)] bool bIsPassPhrase,
             [In, MarshalAs(UnmanagedType.Bool)] bool bPersistent,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
 
         [DllImport("wlanapi.dll")]
         public static extern uint WlanHostedNetworkQuerySecondaryKey(
-            [In] IntPtr hClientHandle,
+            [In] WlanHandle hClientHandle,
             [Out] out uint pdwKeyLength,
             [Out] out IntPtr ppucKeyData,
             [Out, MarshalAs(UnmanagedType.Bool)] out bool pbIsPassPhrase,
             [Out, MarshalAs(UnmanagedType.Bool)] out bool pbPersistent,
             [Out, Optional] out WLAN_HOSTED_NETWORK_REASON pFailReason,
-            IntPtr pvReserved);
+            IntPtr pvReserved = default(IntPtr));
+
+        public delegate void WLAN_NOTIFICATION_CALLBACK(WLAN_NOTIFICATION_DATA data, IntPtr context);
+
+        [DllImport("wlanapi.dll")]
+        public static extern uint WlanRegisterNotification(
+            [In] WlanHandle hClientHandle,
+            [In] uint dwNotifSource,
+            [In, MarshalAs(UnmanagedType.Bool)] bool bIgnoreDuplicate,
+            [In, Optional] WLAN_NOTIFICATION_CALLBACK funcCallback,
+            [In, Optional] IntPtr pCallbackContext,
+            IntPtr pReserved,
+            [Out, Optional] out uint pdwPrevNotifSource);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern IntPtr RegisterDeviceNotification(
@@ -398,5 +457,8 @@ namespace WlanManager
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool UnregisterDeviceNotification(
             [In]IntPtr Handle);
+
+        [DllImport("Iphlpapi.dll")]
+        public static extern uint GetBestInterfaceEx([In]byte[] pDestAddr, [Out]out uint dwBestIfIndex);
     }
 }
