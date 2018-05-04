@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -18,33 +19,29 @@ namespace WlanManager
         private bool _disposed;
         private readonly WlanHandle _hClientHandle;
         private Guid _hostedNetworkInterfaceGuid;
-        private static readonly object _lock = new object();
+        private readonly object _lock = new object();
 
         private readonly ICSManager _icsManager;
 
-        private bool _isEnabled;
-        public bool IsEnabled => _isEnabled;
+        public bool IsEnabled { get; private set; }
 
-        private string _ssid;
-        public string SSID => _ssid;
+        // ReSharper disable once InconsistentNaming
+        public string SSID { get; private set; }
 
-        uint _maxNumberOfPeers;
-        public uint MaxNumberOfPeers => _maxNumberOfPeers;
+        public uint MaxNumberOfPeers { get; private set; }
 
-        string _authentication;
-        public string Authentication => _authentication;
+        public string Authentication { get; private set; }
 
-        string _encryption;
-        public string Encryption => _encryption;
+        public string Encryption { get; private set; }
 
-        bool _isStarted;
-        public bool IsStarted => _isStarted;
+        public bool IsStarted { get; private set; }
 
-        string _bssid;
-        public string BSSID => _bssid;
+        // ReSharper disable once InconsistentNaming
+        public string BSSID { get; private set; }
 
-        uint _channelFrequency;
-        public uint ChannelFrequency => _channelFrequency;
+        public uint ChannelFrequency { get; private set; }
+
+        public uint NumberOfPeers { get; private set; }
 
         public string Password
         {
@@ -76,6 +73,8 @@ namespace WlanManager
 
         public event EventHandler EnableStateChanged;
         public event EventHandler StartStateChanged;
+        public event EventHandler DeviceConnected;
+        public event EventHandler DeviceDisconnected;
 
         public WlanHostedNetworkManager()
         {
@@ -95,21 +94,20 @@ namespace WlanManager
                 throw new Win32Exception((int)err);
             }
 
-            Refresh();
+            Init();
             _icsManager = new ICSManager();
         }
 
-
-        public void Refresh()
+        private void Init()
         {
-            _isEnabled = false;
-            _ssid = string.Empty;
-            _maxNumberOfPeers = 0;
-            _authentication = string.Empty;
-            _encryption = string.Empty;
-            _isStarted = false;
-            _bssid = string.Empty;
-            _channelFrequency = 0;
+            IsEnabled = false;
+            SSID = string.Empty;
+            MaxNumberOfPeers = 0;
+            Authentication = string.Empty;
+            Encryption = string.Empty;
+            IsStarted = false;
+            BSSID = string.Empty;
+            ChannelFrequency = 0;
 
             IntPtr pConnectionSettings = IntPtr.Zero;
             IntPtr pSecuritySettings = IntPtr.Zero;
@@ -123,7 +121,7 @@ namespace WlanManager
             if (err == NativeMethods.ERROR_SUCCESS)
             {
                 int ret = Marshal.ReadInt32(pEnabled);
-                _isEnabled = ret != 0;
+                IsEnabled = ret != 0;
 
                 err = NativeMethods.WlanHostedNetworkQueryProperty(
                     _hClientHandle,
@@ -134,8 +132,8 @@ namespace WlanManager
                 if (err == NativeMethods.ERROR_SUCCESS)
                 {
                     var connectionSettings = Marshal.PtrToStructure<NativeMethods.WLAN_HOSTED_NETWORK_CONNECTION_SETTINGS>(pConnectionSettings);
-                    _ssid = connectionSettings.hostedNetworkSSID.ucSSID;
-                    _maxNumberOfPeers = connectionSettings.dwMaxNumberOfPeers;
+                    SSID = connectionSettings.hostedNetworkSSID.ucSSID;
+                    MaxNumberOfPeers = connectionSettings.dwMaxNumberOfPeers;
                 }
 
                 err = NativeMethods.WlanHostedNetworkQueryProperty(
@@ -147,8 +145,8 @@ namespace WlanManager
                 if (err == NativeMethods.ERROR_SUCCESS)
                 {
                     var securitySettings = Marshal.PtrToStructure<NativeMethods.WLAN_HOSTED_NETWORK_SECURITY_SETTINGS>(pSecuritySettings);
-                    _authentication = GenAuthenticationStr(securitySettings.dot11AuthAlgo);
-                    _encryption = GenEncryptionStr(securitySettings.dot11CipherAlgo);
+                    Authentication = GenAuthenticationStr(securitySettings.dot11AuthAlgo);
+                    Encryption = GenEncryptionStr(securitySettings.dot11CipherAlgo);
                 }
                 err = NativeMethods.WlanHostedNetworkQueryStatus(
                     _hClientHandle,
@@ -156,11 +154,19 @@ namespace WlanManager
                 if (err == NativeMethods.ERROR_SUCCESS)
                 {
                     var status = new NativeMethods.WLAN_HOSTED_NETWORK_STATUS(pWlanHostedNetworkStatus);
-                    _isStarted = status.HostedNetworkState == NativeMethods.WLAN_HOSTED_NETWORK_STATE.wlan_hosted_network_active;
-                    _hostedNetworkInterfaceGuid = status.IPDeviceID;
-                    _bssid = string.Join(":", status.wlanHostedNetworkBSSID.Select(b => b.ToString("X2")).ToArray());
-                    _channelFrequency = status.ulChannelFrequency;
+                    IsStarted = status.HostedNetworkState == NativeMethods.WLAN_HOSTED_NETWORK_STATE.wlan_hosted_network_active;
+                    if (status.HostedNetworkState !=
+                        NativeMethods.WLAN_HOSTED_NETWORK_STATE.wlan_hosted_network_unavailable)
+                    {
+                        _hostedNetworkInterfaceGuid = status.IPDeviceID;
+                        BSSID = string.Join(":", status.wlanHostedNetworkBSSID.Select(b => b.ToString("X2")).ToArray());
+                        if (IsStarted)
+                        {
+                            ChannelFrequency = status.ulChannelFrequency;
+                            NumberOfPeers = status.dwNumberOfPeers;
+                        }
 
+                    }
                 }
             }
 
@@ -195,7 +201,7 @@ namespace WlanManager
             lock (_lock)
             {
                 uint err;
-                if (_isStarted)
+                if (IsStarted)
                 {
                     err = NativeMethods.WlanHostedNetworkForceStop(_hClientHandle, out _);
                     if (err != NativeMethods.ERROR_SUCCESS)
@@ -209,8 +215,7 @@ namespace WlanManager
                 bool ret = err == NativeMethods.ERROR_SUCCESS;
                 if (ret)
                 {
-                    Refresh();
-                    _isStarted = true;
+                    IsStarted = true;
 
                     if (_icsManager == null || !_icsManager.IsServiceStatusValid)
                     {
@@ -219,7 +224,7 @@ namespace WlanManager
                     else
                     {
                         var privateGuid = _hostedNetworkInterfaceGuid;
-                        var publicGuid = GetPreferredPublicGuid(privateGuid);
+                        var publicGuid = GetPreferredPublicGuid();
 
                         _icsManager.EnableSharing(publicGuid, privateGuid);
                     }
@@ -233,7 +238,7 @@ namespace WlanManager
         {
             lock (_lock)
             {
-                if (!_isStarted)
+                if (!IsStarted)
                 {
                     return Task.FromResult(false);
                 }
@@ -255,8 +260,7 @@ namespace WlanManager
                 bool ret = err == NativeMethods.ERROR_SUCCESS;
                 if (ret)
                 {
-                    Refresh();
-                    _isStarted = false;
+                    IsStarted = false;
                 }
                 return Task.FromResult(ret);
             }
@@ -311,7 +315,7 @@ namespace WlanManager
             {
                 Marshal.FreeHGlobal(pConnectionSettings);
             }
-            Refresh();
+            Init();
         }
 
         private string GenAuthenticationStr(NativeMethods.DOT11_AUTH_ALGORITHM dot11AuthAlgorithm)
@@ -401,11 +405,11 @@ namespace WlanManager
                                 data.pData);
                         if (peerStateChange.NewState.PeerAuthState == NativeMethods.WLAN_HOSTED_NETWORK_PEER_AUTH_STATE.wlan_hosted_network_peer_state_authenticated)
                         {
-                            OnDeviceConnected(peerStateChange.NewState);
+                            OnDeviceConnected();
                         }
                         if (peerStateChange.NewState.PeerAuthState == NativeMethods.WLAN_HOSTED_NETWORK_PEER_AUTH_STATE.wlan_hosted_network_peer_state_invalid)
                         {
-                            OnDeviceDisconnected(peerStateChange.NewState.PeerMacAddress);
+                            OnDeviceDisconnected();
                         }
                         break;
                 }
@@ -415,60 +419,56 @@ namespace WlanManager
 
         private void OnHostedNetworkEnabled()
         {
-            _isEnabled = true;
+            IsEnabled = true;
+            Init();
             EnableStateChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnHostedNetworkDisabled()
         {
-            _isEnabled = false;
-            _isStarted = false;
+            IsEnabled = false;
+            IsStarted = false;
             EnableStateChanged?.Invoke(this, EventArgs.Empty);
 
         }
         private void OnHostedNetworkStarted()
         {
-            _isStarted = true;
+            IsStarted = true;
             StartStateChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnHostedNetworkStopped()
         {
-            _isStarted = false;
+            IsStarted = false;
             StartStateChanged?.Invoke(this, EventArgs.Empty);
 
         }
 
-        private void OnDeviceConnected(NativeMethods.WLAN_HOSTED_NETWORK_PEER_STATE newState)
+        private void OnDeviceConnected()
         {
-
+            NumberOfPeers++;
+            DeviceConnected?.Invoke(this, EventArgs.Empty);
         }
 
-        private void OnDeviceDisconnected(byte[] newStatePeerMacAddress)
+        private void OnDeviceDisconnected()
         {
-
-
+            NumberOfPeers--;
+            DeviceDisconnected?.Invoke(this, EventArgs.Empty);
         }
 
-        private static Func<SocketAddress, byte[]> testFunc = CreateGetXXX();
-        private static Func<IPAddress, SocketAddress> createSa = CreateCreateXXX();
+        private static readonly Func<SocketAddress, byte[]> GetSocketAddressBuffer = GenGetSocketAddressBufferFunc();
+        private static readonly Func<IPAddress, SocketAddress> CreateSocketAddressByIpAddress = GenCreateSocketAddressByIpAddressFunc();
 
-        private static Guid GetPreferredPublicGuid(Guid privateGuid)
+        private static Guid GetPreferredPublicGuid()
         {
             var nics = NetworkInterface.GetAllNetworkInterfaces();
-            //var nic = nics.FirstOrDefault(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet
-            //                                   && n.OperationalStatus == OperationalStatus.Up) ??
-            //          nics.FirstOrDefault(n => n.NetworkInterfaceType == NetworkInterfaceType.Wireless80211
-            //                                   && n.OperationalStatus == OperationalStatus.Up
-            //                                   && new Guid(n.Id) != privateGuid);
             var hostInfo = Dns.GetHostEntry("www.baidu.com");
             var ipAddr = hostInfo.AddressList[0];
-            var sa = createSa(ipAddr);
-            var sabuffer = testFunc(sa);
+            var sa = CreateSocketAddressByIpAddress(ipAddr);
+            var sabuffer = GetSocketAddressBuffer(sa);
 
             NativeMethods.GetBestInterfaceEx(sabuffer, out uint bestIfIndex);
 
-            //NativeMethods.GetBestInterface()
             var nic = nics.FirstOrDefault(n =>
             {
                 var ipProps = n.GetIPProperties();
@@ -493,9 +493,10 @@ namespace WlanManager
             return new Guid(nic.Id);
         }
 
-        static Func<SocketAddress, byte[]> CreateGetXXX()
+        // ReSharper disable once UnusedMember.Local
+        private static Func<SocketAddress, byte[]> GenGetSocketAddressBufferFuncEmit()
         {
-            DynamicMethod dm = new DynamicMethod("GetBuffer", typeof(byte[]), new[] { typeof(SocketAddress) }, typeof(SocketAddress));
+            var dm = new DynamicMethod("GetSocketAddressBuffer", typeof(byte[]), new[] { typeof(SocketAddress) }, typeof(SocketAddress));
             var field = typeof(SocketAddress).GetField("m_Buffer", BindingFlags.Instance | BindingFlags.NonPublic);
             if (field == null)
             {
@@ -508,9 +509,10 @@ namespace WlanManager
             return (Func<SocketAddress, byte[]>)dm.CreateDelegate(typeof(Func<SocketAddress, byte[]>));
         }
 
-        static Func<IPAddress, SocketAddress> CreateCreateXXX()
+        // ReSharper disable once UnusedMember.Local
+        private static Func<IPAddress, SocketAddress> GenCreateSocketAddressByIpAddressFuncEmit()
         {
-            DynamicMethod dm = new DynamicMethod("CreateSA", typeof(SocketAddress), new[] { typeof(IPAddress) }, typeof(SocketAddress));
+            var dm = new DynamicMethod("CreateSocketAddressByIpAddress", typeof(SocketAddress), new[] { typeof(IPAddress) }, typeof(SocketAddress));
             var ctor = typeof(SocketAddress).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(IPAddress) }, null);
             if (ctor == null)
             {
@@ -521,6 +523,35 @@ namespace WlanManager
             il.Emit(OpCodes.Newobj, ctor);
             il.Emit(OpCodes.Ret);
             return (Func<IPAddress, SocketAddress>)dm.CreateDelegate(typeof(Func<IPAddress, SocketAddress>));
+        }
+
+        private static Func<SocketAddress, byte[]> GenGetSocketAddressBufferFunc()
+        {
+            var type = typeof(SocketAddress);
+            var field = type.GetField("m_Buffer", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field == null)
+            {
+                throw new Exception("Api Broken");
+            }
+            var param = Expression.Parameter(type);
+            var getfield = Expression.Field(param, field);
+            var lambda = Expression.Lambda(typeof(Func<SocketAddress, byte[]>), getfield, param);
+            return (Func<SocketAddress, byte[]>)lambda.Compile();
+        }
+
+        private static Func<IPAddress, SocketAddress> GenCreateSocketAddressByIpAddressFunc()
+        {
+            var type = typeof(SocketAddress);
+            var ctor = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(IPAddress) }, null);
+            if (ctor == null)
+            {
+                throw new Exception("Api Broken");
+            }
+
+            var param = Expression.Parameter(typeof(IPAddress));
+            var create = Expression.New(ctor, param);
+            var lamdba = Expression.Lambda(typeof(Func<IPAddress, SocketAddress>), create, param);
+            return (Func<IPAddress, SocketAddress>)lamdba.Compile();
         }
 
         public void Dispose()

@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NETCONLib;
 
 namespace WlanManager
 {
-    class ICSConnection
+    internal class ICSConnection
     {
         private readonly INetConnectionProps _netConnectionProperties;
         private readonly INetSharingConfiguration _netSharingConfiguration;

@@ -24,9 +24,6 @@ namespace WlanManager
         private void button2_Click(object sender, EventArgs e)
         {
             _wlanHostedNetworkManager.Config(checkBox2.Checked, textBox1.Text, textBox2.Text);
-            //wlanHostedNetworkManager.SSID = textBox1.Text;
-            //wlanHostedNetworkManager.Password = textBox2.Text;
-            //wlanHostedNetworkManager.IsEnabled = checkBox2.Checked;
         }
     }
 }

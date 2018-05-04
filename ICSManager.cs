@@ -5,7 +5,7 @@ using NETCONLib;
 
 namespace WlanManager
 {
-    class ICSManager : IDisposable
+    internal class ICSManager : IDisposable
     {
         private readonly INetSharingManager _netSharingManager;
         private readonly ServiceController _icsService;

@@ -31,12 +31,6 @@
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
             this.stateGroupBox = new System.Windows.Forms.GroupBox();
-            this.chLabel = new System.Windows.Forms.Label();
-            this.bssidLabel = new System.Windows.Forms.Label();
-            this.statusLabel = new System.Windows.Forms.Label();
-            this.label8 = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
-            this.label6 = new System.Windows.Forms.Label();
             this.infoGroupBox = new System.Windows.Forms.GroupBox();
             this.button3 = new System.Windows.Forms.Button();
             this.modeLabel = new System.Windows.Forms.Label();
@@ -49,6 +43,14 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.label6 = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.label8 = new System.Windows.Forms.Label();
+            this.statusLabel = new System.Windows.Forms.Label();
+            this.bssidLabel = new System.Windows.Forms.Label();
+            this.chLabel = new System.Windows.Forms.Label();
+            this.label9 = new System.Windows.Forms.Label();
+            this.numLabel = new System.Windows.Forms.Label();
             this.stateGroupBox.SuspendLayout();
             this.infoGroupBox.SuspendLayout();
             this.SuspendLayout();
@@ -75,6 +77,8 @@
             // 
             // stateGroupBox
             // 
+            this.stateGroupBox.Controls.Add(this.numLabel);
+            this.stateGroupBox.Controls.Add(this.label9);
             this.stateGroupBox.Controls.Add(this.chLabel);
             this.stateGroupBox.Controls.Add(this.bssidLabel);
             this.stateGroupBox.Controls.Add(this.statusLabel);
@@ -89,57 +93,6 @@
             this.stateGroupBox.TabIndex = 4;
             this.stateGroupBox.TabStop = false;
             this.stateGroupBox.Text = "承载网络状态";
-            // 
-            // chLabel
-            // 
-            this.chLabel.AutoSize = true;
-            this.chLabel.Location = new System.Drawing.Point(49, 75);
-            this.chLabel.Name = "chLabel";
-            this.chLabel.Size = new System.Drawing.Size(0, 12);
-            this.chLabel.TabIndex = 7;
-            // 
-            // bssidLabel
-            // 
-            this.bssidLabel.AutoSize = true;
-            this.bssidLabel.Location = new System.Drawing.Point(54, 49);
-            this.bssidLabel.Name = "bssidLabel";
-            this.bssidLabel.Size = new System.Drawing.Size(0, 12);
-            this.bssidLabel.TabIndex = 6;
-            // 
-            // statusLabel
-            // 
-            this.statusLabel.AutoSize = true;
-            this.statusLabel.Location = new System.Drawing.Point(47, 25);
-            this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(0, 12);
-            this.statusLabel.TabIndex = 5;
-            // 
-            // label8
-            // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(8, 75);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(35, 12);
-            this.label8.TabIndex = 4;
-            this.label8.Text = "频道:";
-            // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(7, 49);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(41, 12);
-            this.label7.TabIndex = 3;
-            this.label7.Text = "BSSID:";
-            // 
-            // label6
-            // 
-            this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(7, 25);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(35, 12);
-            this.label6.TabIndex = 2;
-            this.label6.Text = "状态:";
             // 
             // infoGroupBox
             // 
@@ -256,6 +209,74 @@
             this.label1.TabIndex = 6;
             this.label1.Text = "SSID:";
             // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(21, 25);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(35, 12);
+            this.label6.TabIndex = 2;
+            this.label6.Text = "状态:";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(15, 49);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(41, 12);
+            this.label7.TabIndex = 3;
+            this.label7.Text = "BSSID:";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(22, 75);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(35, 12);
+            this.label8.TabIndex = 4;
+            this.label8.Text = "频道:";
+            // 
+            // statusLabel
+            // 
+            this.statusLabel.AutoSize = true;
+            this.statusLabel.Location = new System.Drawing.Point(63, 25);
+            this.statusLabel.Name = "statusLabel";
+            this.statusLabel.Size = new System.Drawing.Size(0, 12);
+            this.statusLabel.TabIndex = 5;
+            // 
+            // bssidLabel
+            // 
+            this.bssidLabel.AutoSize = true;
+            this.bssidLabel.Location = new System.Drawing.Point(63, 49);
+            this.bssidLabel.Name = "bssidLabel";
+            this.bssidLabel.Size = new System.Drawing.Size(0, 12);
+            this.bssidLabel.TabIndex = 6;
+            // 
+            // chLabel
+            // 
+            this.chLabel.AutoSize = true;
+            this.chLabel.Location = new System.Drawing.Point(63, 75);
+            this.chLabel.Name = "chLabel";
+            this.chLabel.Size = new System.Drawing.Size(0, 12);
+            this.chLabel.TabIndex = 7;
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(9, 97);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(47, 12);
+            this.label9.TabIndex = 8;
+            this.label9.Text = "连接数:";
+            // 
+            // numLabel
+            // 
+            this.numLabel.AutoSize = true;
+            this.numLabel.Location = new System.Drawing.Point(63, 97);
+            this.numLabel.Name = "numLabel";
+            this.numLabel.Size = new System.Drawing.Size(0, 12);
+            this.numLabel.TabIndex = 9;
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -265,7 +286,6 @@
             this.Controls.Add(this.stateGroupBox);
             this.Name = "MainForm";
             this.Text = "承载网络管理器";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.stateGroupBox.ResumeLayout(false);
             this.stateGroupBox.PerformLayout();
@@ -291,13 +311,15 @@
         private System.Windows.Forms.Label encLabel;
         private System.Windows.Forms.Label modeLabel;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Label statusLabel;
-        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Label numLabel;
+        private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Label chLabel;
         private System.Windows.Forms.Label bssidLabel;
-        private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Label statusLabel;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label label6;
     }
 }
 
